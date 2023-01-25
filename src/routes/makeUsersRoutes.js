@@ -1,10 +1,6 @@
-import User from "../db/models/User.js";
 import filterDBResult from "../filterDBResult.js";
 import hashPassword from "../hashPassword.js";
-import makeRoutes from "../makeRoutes.js";
-import auth from "../middlewares/auth.js";
 import validate from "../middlewares/validate.js";
-import hasAccess from "../utils/hasAccess.js";
 import {
   validateDisplayName,
   validateEmail,
@@ -15,10 +11,10 @@ import {
   validateUsername,
 } from "../validators.js";
 
-const makeUsersRoutes = makeRoutes("/users", ({ router }) => {
+const makeUsersRoutes = ({ app, db }) => {
   // CREATE
-  router.post(
-    "/",
+  app.post(
+    "/users",
     validate({
       body: {
         email: validateEmail.required(),
@@ -31,7 +27,7 @@ const makeUsersRoutes = makeRoutes("/users", ({ router }) => {
       const { email, username, displayName, password } = req.body;
       const [passwordHash, passwordSalt] = hashPassword(password);
 
-      const [user] = await User.query()
+      const user = await db("users")
         .insert({
           email,
           username,
@@ -45,9 +41,8 @@ const makeUsersRoutes = makeRoutes("/users", ({ router }) => {
     }
   );
   // READ collection
-  router.get(
-    "/",
-    auth("ADMIN"),
+  app.get(
+    "/users",
     validate({
       query: {
         limit: validateLimit,
@@ -56,15 +51,15 @@ const makeUsersRoutes = makeRoutes("/users", ({ router }) => {
     }),
     async (req, res) => {
       const { limit, offset } = req.locals.query;
-      const users = await User.query().limit(limit).offset(offset);
-      const [{ count }] = await User.query().count();
+      const users = await db("users").limit(limit).offset(offset);
+      const [{ count }] = await db("users").count();
 
       res.send({ result: filterDBResult(users), count });
     }
   );
   // READ single
-  router.get(
-    "/:username",
+  app.get(
+    "/users/:username",
     validate({
       params: {
         username: validateUsername.required(),
@@ -72,15 +67,14 @@ const makeUsersRoutes = makeRoutes("/users", ({ router }) => {
     }),
     async (req, res) => {
       const { username } = req.params;
-      const user = await User.query().findOne({ username }).throwIfNotFound();
+      const user = await db("users").findOne({ username }).throwIfNotFound();
 
       res.send({ result: filterDBResult([user]), count: 1 });
     }
   );
   // UPDATE partial
-  router.patch(
-    "/:userId",
-    auth(),
+  app.patch(
+    "/users/:userId",
     validate({
       params: {
         userId: validateId.required(),
@@ -103,7 +97,7 @@ const makeUsersRoutes = makeRoutes("/users", ({ router }) => {
         hasAccess(req.session, "ADMIN");
       }
 
-      const user = await User.query().findById(userId).throwIfNotFound();
+      const user = await db("users").findById(userId).throwIfNotFound();
 
       let passwordHash;
       let passwordSalt;
@@ -127,13 +121,42 @@ const makeUsersRoutes = makeRoutes("/users", ({ router }) => {
         })
         .returning("*");
 
-      res.send({ result: updatedUser, count: 1 });
+      res.send({ result: filterDBResult([updatedUser]), count: 1 });
+    }
+  );
+  //PATCH ADMIN
+  app.patch(
+    "/users/:userId/role",
+    validate({
+      params: {
+        userId: validateId.required(),
+      },
+      body: {
+        // role: validateRole.required(),
+      },
+    }),
+    async (req, res) => {
+      const {
+        params: { userId },
+        body: { role },
+      } = req;
+
+      const user = await db("users").findById(userId).throwIfNotFound();
+
+      const updatedRole = await user
+        .$query()
+        .patch({
+          role,
+          updatedAt: new Date(),
+        })
+        .returning("*");
+
+      res.send({ result: updatedRole, count: 1 });
     }
   );
   // DELETE
-  router.delete(
-    "/:userId",
-    auth("ADMIN"),
+  app.delete(
+    "/users/:userId",
     validate({
       params: {
         userId: validateId.required(),
@@ -144,13 +167,11 @@ const makeUsersRoutes = makeRoutes("/users", ({ router }) => {
 
       const { userId } = req.params;
 
-      const user = await User.query().deleteById(userId).throwIfNotFound();
+      const user = await db("users").deleteById(userId).throwIfNotFound();
 
       res.send({ result: filterDBResult([user]), count: 1 });
     }
   );
-
-  return router;
-});
+};
 
 export default makeUsersRoutes;

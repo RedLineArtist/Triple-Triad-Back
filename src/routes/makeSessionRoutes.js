@@ -1,15 +1,10 @@
-import express from "express";
-import jsonwebtoken from "jsonwebtoken";
-import config from "../config.js";
-import User from "../db/models/User.js";
+import hashPassword from "../hashPassword.js";
 import validate from "../middlewares/validate.js";
-import { send401 } from "../utils/http.js";
 import { validateEmailOrUsername, validatePassword } from "../validators.js";
 
-const makeSessionRoutes = ({ app }) => {
+const makeSessionRoutes = ({ app, db }) => {
   app.post(
     "/sign-in",
-    express.json(),
     validate({
       emailOrUsername: validateEmailOrUsername.required(),
       password: validatePassword.required(),
@@ -23,42 +18,21 @@ const makeSessionRoutes = ({ app }) => {
         return;
       }
 
-      const user = await User.query()
-        .findOne({
+      const [user] = await db("users")
+        .where({
           email: emailOrUsername,
         })
-        .orWhere({
-          username: emailOrUsername,
-        });
+        .orWhere({ username: emailOrUsername });
 
       if (!user) {
-        send401(res);
+        res.status(401).send({ error: ["Invalid credentials."] });
 
         return;
       }
 
-      if (!user.checkPassword(password)) {
-        send401(res);
+      const [passwordHash] = hashPassword(password, user.passwordSalt);
 
-        return;
-      }
-
-      const jwt = jsonwebtoken.sign(
-        {
-          session: {
-            user: {
-              id: user.id,
-              displayName: user.displayName,
-              username: user.username,
-              role: user.role,
-            },
-          },
-        },
-        config.security.jwt.secret,
-        { expiresIn: config.security.jwt.expiresIn }
-      );
-
-      res.send({ result: [{ jwt }], count: 1 });
+      res.send({ result: [{ status: "OK" }] });
     }
   );
 };
