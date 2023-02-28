@@ -1,5 +1,6 @@
 import filterDBResult from "../filterDBResult.js";
 import hashPassword from "../hashPassword.js";
+import makeRoutes from "../makeRoutes.js";
 import validate from "../middlewares/validate.js";
 import {
   validateDisplayName,
@@ -11,10 +12,10 @@ import {
   validateUsername,
 } from "../validators.js";
 
-const makeUsersRoutes = ({ app, db }) => {
+const makeUsersRoutes = makeRoutes("/users", ({ router }) => {
   // CREATE
-  app.post(
-    "/users",
+  router.post(
+    "/",
     validate({
       body: {
         email: validateEmail.required(),
@@ -41,8 +42,8 @@ const makeUsersRoutes = ({ app, db }) => {
     }
   );
   // READ collection
-  app.get(
-    "/users",
+  router.get(
+    "/",
     validate({
       query: {
         limit: validateLimit,
@@ -58,8 +59,8 @@ const makeUsersRoutes = ({ app, db }) => {
     }
   );
   // READ single
-  app.get(
-    "/users/:username",
+  router.get(
+    "/:username",
     validate({
       params: {
         username: validateUsername.required(),
@@ -73,8 +74,8 @@ const makeUsersRoutes = ({ app, db }) => {
     }
   );
   // UPDATE partial
-  app.patch(
-    "/users/:userId",
+  router.patch(
+    "/:userId",
     validate({
       params: {
         userId: validateId.required(),
@@ -125,8 +126,8 @@ const makeUsersRoutes = ({ app, db }) => {
     }
   );
   //PATCH ADMIN
-  app.patch(
-    "/users/:userId/role",
+  router.patch(
+    "/:userId/role",
     validate({
       params: {
         userId: validateId.required(),
@@ -155,8 +156,8 @@ const makeUsersRoutes = ({ app, db }) => {
     }
   );
   // DELETE
-  app.delete(
-    "/users/:userId",
+  router.delete(
+    "/:userId",
     validate({
       params: {
         userId: validateId.required(),
@@ -172,6 +173,8 @@ const makeUsersRoutes = ({ app, db }) => {
       res.send({ result: filterDBResult([user]), count: 1 });
     }
   );
-};
+
+  return router;
+});
 
 export default makeUsersRoutes;

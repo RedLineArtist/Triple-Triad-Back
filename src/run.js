@@ -3,6 +3,7 @@ import express from "express";
 import knex from "knex";
 import config from "./config.js";
 import makeSessionRoutes from "./routes/makeSessionRoutes.js";
+import makeUploadRoutes from "./routes/makeUploadRoutes.js";
 import makeUsersRoutes from "./routes/makeUsersRoutes.js";
 
 const app = express();
@@ -23,6 +24,7 @@ app.use((req, res, next) => {
 
 makeUsersRoutes({ app, db });
 makeSessionRoutes({ app, db });
+makeUploadRoutes({ app });
 
 // app.use(handleErrrors);
 
